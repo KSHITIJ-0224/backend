@@ -25,7 +25,6 @@ const corsOptions = {
     'http://127.0.0.1:3000',
     'http://192.168.31.21:3000',
     'http://localhost:5000',
-    'https://arutis.vercel.app',
     'https://arutis-project.vercel.app'
   ],
   credentials: true,
