@@ -53,9 +53,9 @@ const connectDB = async () => {
 connectDB();
 
 // Routes
-app.use('/api/contact', contactRoutes);
-app.use('/api/careers', careersRoutes);
-app.use('/api/schedule-call', ScheduleCallRoutes);
+app.use('/contact', contactRoutes);
+app.use('/careers', careersRoutes);
+app.use('/schedule-call', ScheduleCallRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Arutis Server is running' });
