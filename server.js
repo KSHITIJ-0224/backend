@@ -26,8 +26,7 @@ const corsOptions = {
     'http://192.168.31.21:3000',
     'http://localhost:5000',
     'https://arutis-project.vercel.app',
-    // ✅ ADD your production backend URL if needed for testing
-    // 'https://backend-3wks0wrz7-kshitijs-projects-c9df77aa.vercel.app'
+    'https://backend-seven-murex-21.vercel.app',
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -76,9 +75,9 @@ const connectDB = async () => {
 connectDB();
 
 // Routes
-app.use('/contact', contactRoutes);
-app.use('/careers', careersRoutes);
-app.use('/schedule-call', ScheduleCallRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/careers', careersRoutes);
+app.use('/api/schedule-call', ScheduleCallRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Arutis Server is running' });
