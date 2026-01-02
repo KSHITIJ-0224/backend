@@ -20,15 +20,23 @@ app.use(express.json());
 
 // ✅ CORS Configuration - FIXED
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://192.168.31.21:3000',
-    'http://localhost:5000',
-    'https://arutis-project.vercel.app',
-    // ✅ ADD your production backend URL if needed for testing
-    // 'https://backend-3wks0wrz7-kshitijs-projects-c9df77aa.vercel.app'
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://192.168.31.21:3000',
+      'http://localhost:5000',
+      'https://arutis-project.vercel.app',
+      'https://backend-3wks0wrz7-kshitijs-projects-c9df77aa.vercel.app'
+    ];
+    
+    // Allow all Vercel preview deployments
+    if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
