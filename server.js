@@ -27,6 +27,7 @@ const corsOptions = {
     'http://localhost:5000',
     'https://arutis-project.vercel.app',
     'https://backend-seven-murex-21.vercel.app',
+    'https://backend-lovat-pi-17.vercel.app',
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
