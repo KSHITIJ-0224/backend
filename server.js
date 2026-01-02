@@ -20,22 +20,14 @@ app.use(express.json());
 
 // ✅ CORS Configuration - FIXED
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://192.168.31.21:3000',
-      'http://localhost:5000',
-      'https://arutis-project.vercel.app'
-    ];
-    
-    // Allow all Vercel preview deployments
-    if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://192.168.31.21:3000',
+    'http://localhost:5000',
+    'https://arutis-project.vercel.app',
+    'https://backend-3wks0wrz7-kshitijs-projects-c9df77aa.vercel.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -83,9 +75,9 @@ const connectDB = async () => {
 connectDB();
 
 // Routes
-app.use('/api/contact', contactRoutes);
-app.use('/api/careers', careersRoutes);
-app.use('/api/schedule-call', ScheduleCallRoutes);
+app.use('/contact', contactRoutes);
+app.use('/careers', careersRoutes);
+app.use('/schedule-call', ScheduleCallRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Arutis Server is running' });
