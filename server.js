@@ -27,7 +27,6 @@ const corsOptions = {
       'http://192.168.31.21:3000',
       'http://localhost:5000',
       'https://arutis-project.vercel.app',
-      'https://backend-3wks0wrz7-kshitijs-projects-c9df77aa.vercel.app'
     ];
     
     // Allow all Vercel preview deployments
