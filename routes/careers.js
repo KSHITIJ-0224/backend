@@ -37,6 +37,11 @@ const transporter = nodemailer.createTransport({
   }
 })
 
+// GET: Health check
+router.get('/', (req, res) => {
+  res.json({ message: 'Careers API is running' })
+})
+
 // Apply for career
 router.post('/apply', upload.fields([
   { name: 'passportPhoto', maxCount: 1 },
