@@ -61,7 +61,7 @@ app.get('/', (req, res) => {
 });
 
 // CTA schedule-call route
-app.use("/api/schedule-call", ScheduleCallRoutes);
+app.use("/schedule-call", ScheduleCallRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;
