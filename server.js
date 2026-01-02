@@ -55,13 +55,11 @@ connectDB();
 // Routes
 app.use('/api/contact', contactRoutes);
 app.use('/api/careers', careersRoutes);
+app.use('/api/schedule-call', ScheduleCallRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Arutis Server is running' });
 });
-
-// CTA schedule-call route
-app.use("/schedule-call", ScheduleCallRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;
