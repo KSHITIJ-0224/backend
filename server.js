@@ -26,7 +26,7 @@ const corsOptions = {
       'http://127.0.0.1:3000',
       'http://192.168.31.21:3000',
       'http://localhost:5000',
-      'https://arutis-project.vercel.app',
+      'https://arutis-project.vercel.app'
     ];
     
     // Allow all Vercel preview deployments
@@ -83,9 +83,9 @@ const connectDB = async () => {
 connectDB();
 
 // Routes
-app.use('/contact', contactRoutes);
-app.use('/careers', careersRoutes);
-app.use('/schedule-call', ScheduleCallRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/careers', careersRoutes);
+app.use('/api/schedule-call', ScheduleCallRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Arutis Server is running' });
