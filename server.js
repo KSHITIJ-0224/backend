@@ -27,11 +27,11 @@ const corsOptions = {
       'http://192.168.31.21:3000',
       'http://localhost:5000',
       'https://arutis.vercel.app',
-      'https://arutis-project.vercel.app/'
+      'https://arutis-project.vercel.app'
     ];
     
     // Allow requests with no origin (like mobile apps, curl, etc)
-    if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
