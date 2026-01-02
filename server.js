@@ -20,29 +20,24 @@ app.use(express.json());
 
 // CORS Configuration - Allow Vercel frontend and localhost
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://192.168.31.21:3000',
-      'http://localhost:5000',
-      'https://arutis.vercel.app',
-      'https://arutis-project.vercel.app'
-    ];
-    
-    // Allow requests with no origin (like mobile apps, curl, etc)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://192.168.31.21:3000',
+    'http://localhost:5000',
+    'https://arutis.vercel.app',
+    'https://arutis-project.vercel.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
+
+// Explicit preflight handling
+app.options('*', cors(corsOptions));
 
 // MongoDB Connection
 const connectDB = async () => {
