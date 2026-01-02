@@ -15,28 +15,52 @@ dotenv.config({ path: `${__dirname}/.env` });
 
 const app = express();
 
-// Middleware
+// ✅ CRITICAL: Middleware order matters! JSON MUST come before CORS
 app.use(express.json());
 
-// CORS Configuration - Allow Vercel frontend and localhost
+// ✅ CORS Configuration - FIXED
 const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://192.168.31.21:3000',
     'http://localhost:5000',
-    'https://arutis-project.vercel.app'
+    'https://arutis-project.vercel.app',
+    // ✅ ADD your production backend URL if needed for testing
+    // 'https://backend-3wks0wrz7-kshitijs-projects-c9df77aa.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  maxAge: 86400 // Cache preflight for 24 hours
 };
 
+// ✅ Apply CORS to ALL routes
 app.use(cors(corsOptions));
 
-// Explicit preflight handling
+// ✅ Explicit preflight handling (critical for Vercel)
 app.options('*', cors(corsOptions));
+
+// ✅ Additional manual CORS headers as fallback
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  
+  if (corsOptions.origin.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Max-Age', '86400');
+  }
+  
+  // Handle OPTIONS preflight directly
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -60,8 +84,20 @@ app.get('/', (req, res) => {
   res.json({ message: 'Arutis Server is running' });
 });
 
+// ✅ Global error handler (doesn't forget CORS headers)
+app.use((err, req, res, next) => {
+  const origin = req.get('origin');
+  if (corsOptions.origin.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  console.error('Error:', err);
+  res.status(500).json({ error: err.message });
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('✅ CORS configured for:', corsOptions.origin);
 });
