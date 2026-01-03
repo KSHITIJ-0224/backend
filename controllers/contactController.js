@@ -1,4 +1,5 @@
 import ContactForm from '../models/ContactForm.js';
+import { sendContactEmails } from '../utils/Email.js';
 
 // Submit contact form
 export const submitContactForm = async (req, res) => {
@@ -20,6 +21,15 @@ export const submitContactForm = async (req, res) => {
     });
 
     await newContact.save();
+
+    // Send confirmation emails (fire-and-forget)
+    sendContactEmails({
+      name,
+      email,
+      phone,
+      company,
+      message,
+    }).catch((err) => console.error('Email error:', err));
 
     res.status(201).json({
       success: true,
