@@ -9,33 +9,23 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: `${__dirname}/../.env` });
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.titan.email",
-  port: parseInt(process.env.EMAIL_PORT) || 465,
-  secure: true, // SSL for port 465
+  host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
+  port: parseInt(process.env.SMTP_PORT) || 587,
+  secure: false, // TLS for port 587
   auth: {
-    user: process.env.EMAIL_USER?.trim(),
-    pass: process.env.EMAIL_PASSWORD?.trim(),
+    user: process.env.SMTP_USER?.trim(),
+    pass: process.env.SMTP_PASS?.trim(),
   },
-  // ✅ Optimization 1: Increased timeout values
-  connectionTimeout: 15000, // 15 seconds (default: 5000)
-  socketTimeout: 15000, // 15 seconds (default: 5000)
-  // ✅ Optimization 2: Connection pooling
+  // ✅ Connection pooling for reliability
   pool: {
     maxConnections: 5,
     maxMessages: 100,
-    rateDelta: 1000, // Space out messages by 1 second
-    rateLimit: 14, // Max 14 emails per second
+    rateDelta: 1000,
+    rateLimit: 14,
   },
-  // ✅ Optimization 3: TLS settings
-  tls: {
-    rejectUnauthorized: false, // Accept self-signed certs if needed
-    minVersion: 'TLSv1.2',
-  },
-  // ✅ Optimization 4: Logger for debugging
-  logger: true,
-  debug: false, // Set to true for verbose logging
-  // ✅ Optimization 5: Disable DNS cache
-  disableUrlAccess: true,
+  // ✅ Timeouts
+  connectionTimeout: 10000,
+  socketTimeout: 10000,
 });
 
 // ✅ Test connection on startup
@@ -48,15 +38,14 @@ transporter.verify((error, success) => {
 });
 
 // Debug: Log configuration
-if (process.env.EMAIL_USER) {
-  console.log(`✅ Email configured: ${process.env.EMAIL_USER}`);
-  console.log(`📧 SMTP Host: ${process.env.EMAIL_HOST || "smtp.titan.email"}`);
-  console.log(`📧 SMTP Port: ${process.env.EMAIL_PORT || 465}`);
-  console.log(`📧 Connection Timeout: 15s | Socket Timeout: 15s`);
-  console.log(`📧 Connection Pool: Max 5 connections, 14 emails/second`);
-  console.log(`📧 Password: ${process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Not set'}`);
+if (process.env.SMTP_USER) {
+  console.log(`✅ Email configured: ${process.env.FROM_EMAIL || process.env.SMTP_USER}`);
+  console.log(`📧 SMTP Host: ${process.env.SMTP_HOST || "smtp-relay.brevo.com"}`);
+  console.log(`📧 SMTP Port: ${process.env.SMTP_PORT || 587}`);
+  console.log(`📧 Security: TLS`);
+  console.log(`📧 Password: ${process.env.SMTP_PASS ? '✅ Set' : '❌ Not set'}`);
 } else {
-  console.warn("⚠️ Warning: EMAIL_USER not found in .env file - emails won't be sent");
+  console.warn("⚠️ Warning: SMTP_USER not found in .env file - emails won't be sent");
 }
 
 export const sendScheduleCallEmails = async (payload) => {
@@ -71,7 +60,7 @@ export const sendScheduleCallEmails = async (payload) => {
     });
 
     const userMail = {
-      from: process.env.EMAIL_USER,
+      from: "info@arutistechnologies.com",
       to: email,
       subject: "✅ Your Call is Confirmed! - Arutis Technologies",
       html: `
@@ -177,7 +166,7 @@ export const sendScheduleCallEmails = async (payload) => {
     };
 
     const adminMail = {
-      from: process.env.EMAIL_USER,
+      from: "info@arutistechnologies.com",
       to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER,
       subject: `📞 New Schedule Call Request from ${name}`,
       html: `
@@ -274,7 +263,7 @@ export const sendContactEmails = async (payload) => {
     const { name, email, phone, company, message } = payload;
 
     const userMail = {
-      from: process.env.EMAIL_USER,
+      from: "info@arutistechnologies.com",
       to: email,
       subject: "✅ We've Received Your Message - Arutis Technologies",
       html: `
@@ -379,7 +368,7 @@ export const sendContactEmails = async (payload) => {
     };
 
     const adminMail = {
-      from: process.env.EMAIL_USER,
+      from: "info@arutistechnologies.com",
       to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER,
       subject: `📬 New Contact Form Submission from ${name}`,
       html: `
