@@ -246,13 +246,20 @@ export const sendScheduleCallEmails = async (payload) => {
       `,
     };
 
-    await transporter.sendMail(userMail);
-    console.log(`✅ Confirmation email sent to ${email}`);
+    console.log(`📧 Attempting to send user email to: ${email}`);
+    const userResult = await transporter.sendMail(userMail);
+    console.log(`✅ User confirmation email sent:`, userResult.messageId);
     
-    await transporter.sendMail(adminMail);
-    console.log(`✅ Admin notification sent`);
+    console.log(`📧 Attempting to send admin email to: ${process.env.ADMIN_EMAIL || 'admin'}`);
+    const adminResult = await transporter.sendMail(adminMail);
+    console.log(`✅ Admin notification email sent:`, adminResult.messageId);
   } catch (error) {
-    console.error("❌ Email error:", error.message);
+    console.error("❌ Email error details:", {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      stack: error.stack
+    });
     // Don't throw - let the appointment be saved even if email fails
     // In production, you might want to log this to a service
   }
@@ -444,13 +451,20 @@ export const sendContactEmails = async (payload) => {
       `,
     };
 
-    await transporter.sendMail(userMail);
-    console.log(`✅ Confirmation email sent to ${email}`);
+    console.log(`📧 Attempting to send user email to: ${email}`);
+    const userResult = await transporter.sendMail(userMail);
+    console.log(`✅ User confirmation email sent:`, userResult.messageId);
     
-    await transporter.sendMail(adminMail);
-    console.log(`✅ Admin notification sent`);
+    console.log(`📧 Attempting to send admin email to: ${process.env.ADMIN_EMAIL || 'admin'}`);
+    const adminResult = await transporter.sendMail(adminMail);
+    console.log(`✅ Admin notification email sent:`, adminResult.messageId);
   } catch (error) {
-    console.error("❌ Email error:", error.message);
+    console.error("❌ Email error details:", {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      stack: error.stack
+    });
     // Don't throw - let the form be saved even if email fails
   }
 };
