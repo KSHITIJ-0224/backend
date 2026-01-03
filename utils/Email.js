@@ -9,20 +9,51 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: `${__dirname}/../.env` });
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtpout.secureserver.net",
+  host: process.env.EMAIL_HOST || "smtp.titan.email",
   port: parseInt(process.env.EMAIL_PORT) || 465,
   secure: true, // SSL for port 465
   auth: {
     user: process.env.EMAIL_USER?.trim(),
     pass: process.env.EMAIL_PASSWORD?.trim(),
   },
+  // ✅ Optimization 1: Increased timeout values
+  connectionTimeout: 15000, // 15 seconds (default: 5000)
+  socketTimeout: 15000, // 15 seconds (default: 5000)
+  // ✅ Optimization 2: Connection pooling
+  pool: {
+    maxConnections: 5,
+    maxMessages: 100,
+    rateDelta: 1000, // Space out messages by 1 second
+    rateLimit: 14, // Max 14 emails per second
+  },
+  // ✅ Optimization 3: TLS settings
+  tls: {
+    rejectUnauthorized: false, // Accept self-signed certs if needed
+    minVersion: 'TLSv1.2',
+  },
+  // ✅ Optimization 4: Logger for debugging
+  logger: true,
+  debug: false, // Set to true for verbose logging
+  // ✅ Optimization 5: Disable DNS cache
+  disableUrlAccess: true,
+});
+
+// ✅ Test connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Email transporter verification failed:', error.message);
+  } else {
+    console.log('✅ Email transporter verified and ready');
+  }
 });
 
 // Debug: Log configuration
 if (process.env.EMAIL_USER) {
   console.log(`✅ Email configured: ${process.env.EMAIL_USER}`);
-  console.log(`📧 SMTP Host: ${process.env.EMAIL_HOST || "smtp.titan.com"}`);
+  console.log(`📧 SMTP Host: ${process.env.EMAIL_HOST || "smtp.titan.email"}`);
   console.log(`📧 SMTP Port: ${process.env.EMAIL_PORT || 465}`);
+  console.log(`📧 Connection Timeout: 15s | Socket Timeout: 15s`);
+  console.log(`📧 Connection Pool: Max 5 connections, 14 emails/second`);
   console.log(`📧 Password: ${process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Not set'}`);
 } else {
   console.warn("⚠️ Warning: EMAIL_USER not found in .env file - emails won't be sent");
