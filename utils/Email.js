@@ -9,10 +9,9 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: `${__dirname}/../.env` });
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.titan.email",
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: false, // Use TLS (false for 587, true for 465)
-  requireTLS: true,
+  host: process.env.EMAIL_HOST || "smtpout.secureserver.net",
+  port: parseInt(process.env.EMAIL_PORT) || 465,
+  secure: true, // SSL for port 465
   auth: {
     user: process.env.EMAIL_USER?.trim(),
     pass: process.env.EMAIL_PASSWORD?.trim(),

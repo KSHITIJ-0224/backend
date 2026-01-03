@@ -65,10 +65,19 @@ app.use((req, res, next) => {
 // MongoDB Connection
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to arutis_db successfully');
+    console.log(`🔄 Connecting to MongoDB...`);
+    
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    
+    console.log(`✅ Connected to ${mongoose.connection.name} successfully`);
+    console.log(`📊 Database Name: ${mongoose.connection.name}`);
+    console.log(`🖥️ Host: ${mongoose.connection.host}`);
   } catch (err) {
-    console.error('❌ Connection error:', err.message);
+    console.error('❌ MongoDB Connection Error:', err.message);
+    console.error('📋 Full Error:', err);
     process.exit(1);
   }
 };
