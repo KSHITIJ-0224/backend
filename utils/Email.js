@@ -7,22 +7,33 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: `${__dirname}/../.env` });
 
+const smtpHost = process.env.SMTP_HOST || "mail.titanemails.com";
+const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
+const smtpUser = process.env.SMTP_USER?.trim() || "info@arutistechnologies.com";
+const smtpPass = process.env.SMTP_PASS?.trim();
+const secure = smtpPort === 465; // true for 465, false for STARTTLS ports like 587
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "mail.titanemails.com",
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER?.trim() || "info@arutistechnologies.com",
-    pass: process.env.SMTP_PASS?.trim(),
-  },
+  host: smtpHost,
+  port: smtpPort,
+  secure,
+  auth: { user: smtpUser, pass: smtpPass },
   pool: { maxConnections: 5, maxMessages: 100, rateDelta: 1000, rateLimit: 14 },
-  connectionTimeout: 10000,
-  socketTimeout: 10000,
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  tls: { rejectUnauthorized: false },
+  requireTLS: !secure,
 });
 
 transporter.verify((error, success) => {
-  if (error) console.error('❌ Email transporter verification failed:', error.message);
-  else console.log('✅ Email transporter verified and ready');
+  if (error) {
+    console.error('❌ Email transporter verification failed:', error && error.message ? error.message : error);
+    if (!smtpPass) console.error('⚠️ SMTP_PASS is not set in .env');
+    console.error('⚠️ Transport config:', { host: smtpHost, port: smtpPort, secure, user: smtpUser });
+  } else {
+    console.log('✅ Email transporter verified and ready');
+  }
 });
 
 // ✅ USE YOUR ACTUAL VERIFIED DOMAIN EMAIL AS SENDER
