@@ -24,11 +24,11 @@ if (!COMPANY_EMAIL || !COMPANY_PASSWORD) {
  * This is important for serverless environments like Vercel where
  * connections can be closed between function invocations
  */
-const createTransporter = () => {
+const createTransporter = (useSSL = false) => {
   return nodemailer.createTransport({
     host: "smtp.titan.email",
-    port: 587,
-    secure: false, // STARTTLS
+    port: useSSL ? 465 : 587,
+    secure: useSSL, // true for SSL (465), false for STARTTLS (587)
     auth: {
       user: COMPANY_EMAIL,
       pass: COMPANY_PASSWORD,
@@ -40,9 +40,10 @@ const createTransporter = () => {
     pool: false, // Disable connection pooling for serverless
     maxConnections: 1,
     maxMessages: 1,
-    connectionTimeout: 10000, // Reduced timeout for faster failures
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    // Increased timeouts for Vercel serverless environment
+    connectionTimeout: 30000, // 30 seconds for initial connection
+    greetingTimeout: 30000, // 30 seconds for SMTP greeting
+    socketTimeout: 60000, // 60 seconds for socket operations
     // Retry configuration
     retry: {
       attempts: 3,
@@ -53,15 +54,18 @@ const createTransporter = () => {
 
 /**
  * Send email with retry logic for serverless environments
+ * Tries port 587 (STARTTLS) first, then falls back to port 465 (SSL) if it fails
  */
 const sendMailWithRetry = async (mailOptions, retries = 3) => {
   let lastError;
   let currentTransporter = null;
+  let triedSSL = false;
   
+  // First, try with port 587 (STARTTLS)
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       // Create fresh transporter for each attempt (important for serverless)
-      currentTransporter = createTransporter();
+      currentTransporter = createTransporter(false); // Try STARTTLS first
       
       const result = await currentTransporter.sendMail(mailOptions);
       
@@ -75,7 +79,10 @@ const sendMailWithRetry = async (mailOptions, retries = 3) => {
       return result;
     } catch (error) {
       lastError = error;
-      console.warn(`Email send attempt ${attempt}/${retries} failed:`, error.message);
+      const errorMessage = error.message || '';
+      const errorCode = error.code || '';
+      
+      console.warn(`Email send attempt ${attempt}/${retries} (port 587) failed:`, errorMessage, `(code: ${errorCode || 'none'})`);
       
       // Clean up transporter on error
       if (currentTransporter) {
@@ -87,17 +94,81 @@ const sendMailWithRetry = async (mailOptions, retries = 3) => {
         currentTransporter = null;
       }
       
-      // If it's a connection error and we have retries left, wait and retry
-      if (attempt < retries && (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET')) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      // Check if it's a retryable error (connection/timeout errors)
+      const isRetryable = 
+        errorCode === 'ECONNECTION' || 
+        errorCode === 'ETIMEDOUT' || 
+        errorCode === 'ESOCKET' ||
+        errorCode === 'ETIMEOUT' ||
+        errorMessage.toLowerCase().includes('timeout') ||
+        errorMessage.toLowerCase().includes('connection');
+      
+      // If it's a retryable error and we have retries left, wait and retry
+      if (attempt < retries && isRetryable) {
+        const delay = 2000 * attempt; // Exponential backoff: 2s, 4s, 6s
+        console.log(`Retrying port 587 in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
       
-      // If it's not a connection error or we're out of retries, throw
-      throw error;
+      // If all retries failed on port 587, break to try port 465
+      break;
     }
   }
   
+  // If port 587 failed, try port 465 (SSL) as fallback
+  if (lastError && (lastError.code === 'ECONNECTION' || 
+      lastError.code === 'ETIMEDOUT' || 
+      lastError.code === 'ESOCKET' ||
+      lastError.message?.toLowerCase().includes('timeout'))) {
+    console.log("Port 587 failed, trying port 465 (SSL) as fallback...");
+    triedSSL = true;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        // Try with SSL (port 465)
+        currentTransporter = createTransporter(true);
+        
+        const result = await currentTransporter.sendMail(mailOptions);
+        
+        // Close connection after sending
+        try {
+          currentTransporter.close();
+        } catch (closeError) {
+          console.warn("Error closing transporter:", closeError.message);
+        }
+        
+        console.log("✅ Email sent successfully using port 465 (SSL)");
+        return result;
+      } catch (error) {
+        lastError = error;
+        const errorMessage = error.message || '';
+        const errorCode = error.code || '';
+        
+        console.warn(`Email send attempt ${attempt}/${retries} (port 465) failed:`, errorMessage, `(code: ${errorCode || 'none'})`);
+        
+        // Clean up transporter on error
+        if (currentTransporter) {
+          try {
+            currentTransporter.close();
+          } catch (closeError) {
+            // Ignore close errors
+          }
+          currentTransporter = null;
+        }
+        
+        // If it's a retryable error and we have retries left, wait and retry
+        if (attempt < retries) {
+          const delay = 2000 * attempt;
+          console.log(`Retrying port 465 in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+    }
+  }
+  
+  // If both ports failed, throw the last error
   throw lastError;
 };
 
