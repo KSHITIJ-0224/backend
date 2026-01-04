@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -9,167 +9,54 @@ dotenv.config({ path: `${__dirname}/../.env` });
 
 /**
  * =====================================================
- * BIGROCK / TITAN SMTP CONFIG
+ * RESEND EMAIL API CONFIG
  * =====================================================
+ * Resend is a modern email API built for serverless environments
+ * No SMTP connection issues, no timeouts, much more reliable!
  */
-const COMPANY_EMAIL = process.env.BIGROCK_EMAIL;
-const COMPANY_PASSWORD = process.env.BIGROCK_PASSWORD;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const COMPANY_EMAIL = process.env.BIGROCK_EMAIL || process.env.FROM_EMAIL || "onboarding@resend.dev";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
-if (!COMPANY_EMAIL || !COMPANY_PASSWORD) {
-  throw new Error("❌ BIGROCK_EMAIL or BIGROCK_PASSWORD missing in .env");
+if (!RESEND_API_KEY) {
+  console.warn("⚠️ RESEND_API_KEY not found. Emails will not be sent.");
+  console.warn("Get your API key from: https://resend.com/api-keys");
 }
 
-/**
- * Create transporter function - creates a new connection for each use
- * This is important for serverless environments like Vercel where
- * connections can be closed between function invocations
- */
-const createTransporter = (useSSL = false) => {
-  return nodemailer.createTransport({
-    host: "smtp.titan.email",
-    port: useSSL ? 465 : 587,
-    secure: useSSL, // true for SSL (465), false for STARTTLS (587)
-    auth: {
-      user: COMPANY_EMAIL,
-      pass: COMPANY_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-    // Serverless-friendly settings
-    pool: false, // Disable connection pooling for serverless
-    maxConnections: 1,
-    maxMessages: 1,
-    // Increased timeouts for Vercel serverless environment
-    connectionTimeout: 30000, // 30 seconds for initial connection
-    greetingTimeout: 30000, // 30 seconds for SMTP greeting
-    socketTimeout: 60000, // 60 seconds for socket operations
-    // Retry configuration
-    retry: {
-      attempts: 3,
-      delay: 1000,
-    },
-  });
-};
+// Initialize Resend client
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 /**
- * Send email with retry logic for serverless environments
- * Tries port 587 (STARTTLS) first, then falls back to port 465 (SSL) if it fails
+ * Send email using Resend API
+ * This is much more reliable than SMTP in serverless environments
  */
-const sendMailWithRetry = async (mailOptions, retries = 3) => {
-  let lastError;
-  let currentTransporter = null;
-  let triedSSL = false;
-  
-  // First, try with port 587 (STARTTLS)
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      // Create fresh transporter for each attempt (important for serverless)
-      currentTransporter = createTransporter(false); // Try STARTTLS first
-      
-      const result = await currentTransporter.sendMail(mailOptions);
-      
-      // Close connection after sending (with error handling)
-      try {
-        currentTransporter.close();
-      } catch (closeError) {
-        console.warn("Error closing transporter:", closeError.message);
-      }
-      
-      return result;
-    } catch (error) {
-      lastError = error;
-      const errorMessage = error.message || '';
-      const errorCode = error.code || '';
-      
-      console.warn(`Email send attempt ${attempt}/${retries} (port 587) failed:`, errorMessage, `(code: ${errorCode || 'none'})`);
-      
-      // Clean up transporter on error
-      if (currentTransporter) {
-        try {
-          currentTransporter.close();
-        } catch (closeError) {
-          // Ignore close errors
-        }
-        currentTransporter = null;
-      }
-      
-      // Check if it's a retryable error (connection/timeout errors)
-      const isRetryable = 
-        errorCode === 'ECONNECTION' || 
-        errorCode === 'ETIMEDOUT' || 
-        errorCode === 'ESOCKET' ||
-        errorCode === 'ETIMEOUT' ||
-        errorMessage.toLowerCase().includes('timeout') ||
-        errorMessage.toLowerCase().includes('connection');
-      
-      // If it's a retryable error and we have retries left, wait and retry
-      if (attempt < retries && isRetryable) {
-        const delay = 2000 * attempt; // Exponential backoff: 2s, 4s, 6s
-        console.log(`Retrying port 587 in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      
-      // If all retries failed on port 587, break to try port 465
-      break;
-    }
+const sendEmail = async (emailData) => {
+  if (!resend) {
+    throw new Error("Resend API key not configured. Please set RESEND_API_KEY in environment variables.");
   }
-  
-  // If port 587 failed, try port 465 (SSL) as fallback
-  if (lastError && (lastError.code === 'ECONNECTION' || 
-      lastError.code === 'ETIMEDOUT' || 
-      lastError.code === 'ESOCKET' ||
-      lastError.message?.toLowerCase().includes('timeout'))) {
-    console.log("Port 587 failed, trying port 465 (SSL) as fallback...");
-    triedSSL = true;
-    
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        // Try with SSL (port 465)
-        currentTransporter = createTransporter(true);
-        
-        const result = await currentTransporter.sendMail(mailOptions);
-        
-        // Close connection after sending
-        try {
-          currentTransporter.close();
-        } catch (closeError) {
-          console.warn("Error closing transporter:", closeError.message);
-        }
-        
-        console.log("✅ Email sent successfully using port 465 (SSL)");
-        return result;
-      } catch (error) {
-        lastError = error;
-        const errorMessage = error.message || '';
-        const errorCode = error.code || '';
-        
-        console.warn(`Email send attempt ${attempt}/${retries} (port 465) failed:`, errorMessage, `(code: ${errorCode || 'none'})`);
-        
-        // Clean up transporter on error
-        if (currentTransporter) {
-          try {
-            currentTransporter.close();
-          } catch (closeError) {
-            // Ignore close errors
-          }
-          currentTransporter = null;
-        }
-        
-        // If it's a retryable error and we have retries left, wait and retry
-        if (attempt < retries) {
-          const delay = 2000 * attempt;
-          console.log(`Retrying port 465 in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-      }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: emailData.from || `Arutis Technologies <${COMPANY_EMAIL}>`,
+      to: Array.isArray(emailData.to) ? emailData.to : [emailData.to],
+      subject: emailData.subject,
+      html: emailData.html,
+      text: emailData.text,
+      reply_to: emailData.replyTo || COMPANY_EMAIL,
+    });
+
+    if (error) {
+      throw new Error(`Resend API error: ${error.message}`);
     }
+
+    return {
+      messageId: data?.id || "unknown",
+      success: true,
+    };
+  } catch (error) {
+    console.error("Resend email error:", error.message);
+    throw error;
   }
-  
-  // If both ports failed, throw the last error
-  throw lastError;
 };
 
 /**
@@ -189,7 +76,7 @@ export const sendScheduleCallEmails = async (payload) => {
     });
 
     // USER EMAIL
-    const userMail = {
+    const userEmailData = {
       from: `Arutis Technologies <${COMPANY_EMAIL}>`,
       to: email,
       replyTo: COMPANY_EMAIL,
@@ -215,9 +102,9 @@ Arutis Technologies`,
     };
 
     // ADMIN EMAIL
-    const adminMail = {
+    const adminEmailData = {
       from: `Arutis Technologies <${COMPANY_EMAIL}>`,
-      to: process.env.ADMIN_EMAIL,
+      to: ADMIN_EMAIL,
       replyTo: COMPANY_EMAIL,
       subject: `📞 New Schedule Call from ${name}`,
       html: `<h2>New Schedule Call Request</h2>
@@ -238,11 +125,11 @@ Budget: ${budget}`,
     };
 
     console.log("\n📧 ======== SCHEDULE CALL EMAIL ========");
-    console.log(`📧 From: ${COMPANY_EMAIL} (BigRock Titan)`);
+    console.log(`📧 From: ${COMPANY_EMAIL} (Resend API)`);
     console.log(`📧 To Customer: ${email}`);
 
-    const userResult = await sendMailWithRetry(userMail);
-    const adminResult = await sendMailWithRetry(adminMail);
+    const userResult = await sendEmail(userEmailData);
+    const adminResult = await sendEmail(adminEmailData);
 
     console.log("✅ User email sent:", userResult.messageId);
     console.log("✅ Admin email sent:", adminResult.messageId);
@@ -268,7 +155,7 @@ export const sendContactEmails = async (payload) => {
     const { name, email, phone, company, message } = payload;
 
     // USER EMAIL
-    const userMail = {
+    const userEmailData = {
       from: `Arutis Technologies <${COMPANY_EMAIL}>`,
       to: email,
       replyTo: COMPANY_EMAIL,
@@ -294,9 +181,9 @@ Arutis Technologies`,
     };
 
     // ADMIN EMAIL
-    const adminMail = {
+    const adminEmailData = {
       from: `Arutis Technologies <${COMPANY_EMAIL}>`,
-      to: process.env.ADMIN_EMAIL,
+      to: ADMIN_EMAIL,
       replyTo: COMPANY_EMAIL,
       subject: `📬 New Contact Message from ${name}`,
       html: `<h2>New Contact Message</h2>
@@ -318,11 +205,11 @@ ${message}`,
     };
 
     console.log("\n📧 ======== CONTACT EMAIL ========");
-    console.log(`📧 From: ${COMPANY_EMAIL} (BigRock Titan)`);
+    console.log(`📧 From: ${COMPANY_EMAIL} (Resend API)`);
     console.log(`📧 To Customer: ${email}`);
 
-    const userResult = await sendMailWithRetry(userMail);
-    const adminResult = await sendMailWithRetry(adminMail);
+    const userResult = await sendEmail(userEmailData);
+    const adminResult = await sendEmail(adminEmailData);
 
     console.log("✅ User email sent:", userResult.messageId);
     console.log("✅ Admin email sent:", adminResult.messageId);
